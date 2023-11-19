@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
-//this should be a very simple lexer that just returns a value of 2
 pub enum Token{
     Num(u32),
     Id(String),
@@ -11,9 +10,27 @@ pub enum Token{
     OpenBracket(char),
     CloseBracket(char),
     SemiColon(char),
-
+    Assign(char),
 }
-
+#[derive(Debug)]
+pub struct  Program{
+    funcs: Vec<Function>,
+}
+#[derive(Debug)]
+pub struct Function{
+    Type:String,
+    Name:String,
+    Statements: Vec<Statement>
+}
+#[derive(Debug)]
+pub struct Statement{
+    KeyWord : String,
+    Expres: Expression,
+}
+#[derive(Debug)]
+pub struct Expression{
+    data: u32,
+}
 fn lex(input: &String) -> Result<Vec<Token>,String>{
     //turn input into a list of chars
     let mut result = Vec::new();
@@ -97,12 +114,118 @@ fn lex(input: &String) -> Result<Vec<Token>,String>{
     }
     return Ok(result);
 }
+
+fn parse(lex : Vec<Token>) -> Result<Program,String>{
+    let mut result = Program { funcs: Vec::new() };
+    let mut token_iter = lex.iter().peekable();
+    
+    while let Some(&token) = token_iter.peek(){
+        match token{
+            Token::Keyword(_)=>{
+                let Type = (*token).clone();
+
+                token_iter.next();
+                let token = *token_iter.peek().unwrap();
+                match token {
+                    Token::Id(_)=>{
+                        //now i know that the next 3 tokens should be (){ so lets check quickly if that is true
+                        let name = (*token).clone();
+                        token_iter.next();
+                        let token = *token_iter.peek().unwrap();
+                        match token {
+                            Token::OpenBracket('(')=>{
+                                token_iter.next();
+                                let token = *token_iter.peek().unwrap();
+                                match token {
+                                    Token::CloseBracket(')')=>{
+                                        token_iter.next();
+                                        let token = *token_iter.peek().unwrap();
+                                        match token{
+                                            Token::OpenBrace('{') =>{
+                                                // a function has been declared here
+                                                let mut New_Type:String = String::new();
+                                                let mut new_name:String = String::new();
+                                                match name {
+                                                    Token::Id(t)=>{new_name = t},
+                                                    _=>{}
+                                                }
+                                                match Type {
+                                                    Token::Keyword(t)=>{New_Type = t},
+                                                    _=>{}
+                                                }
+                                                
+                                                let mut all_states = Vec::<Statement>::new();
+                                                // could from here do a while until i detect a } to check for End of func
+                                                while let Some(&token) = token_iter.peek(){
+                                                    match token {
+                                                        Token::Id(_) =>{
+                                                            let id = (*token).clone();
+                                                            token_iter.next();
+                                                            let token = *token_iter.peek().unwrap();
+                                                            match token{
+                                                                Token::Num(_)=>{
+                                                                    let num = (*token).clone();
+                                                                    token_iter.next();
+                                                                    let token = *token_iter.peek().unwrap();
+                                                                    match token{
+                                                                        Token::SemiColon(_)=>{
+                                                                            //end of statement found
+                                                                            if let Token::Num(new_num) = num{
+                                                                                if let Token::Id(new_id) = id{
+                                                                                    let new_statement = Statement{KeyWord:new_id,Expres:Expression { data: new_num }};
+                                                                                    all_states.push(new_statement);
+                                                                                }else{}
+                                                                            }else{}
+                                                                        }
+                                                                        _=>{}
+                                                                    }
+                                                                },
+                                                                _=>{}
+                                                            }
+                                                        },
+                                                        Token::CloseBrace(_)=>{
+                                                            break
+                                                        }
+                                                        _=>{token_iter.next();}
+                                                    }
+                                                }
+                                                let new_func = Function{Type:New_Type,Name:new_name,Statements:all_states};
+                                                result.funcs.push(new_func);
+                                            },
+
+                                            _=>{}
+                                        }
+                                    },
+                                    _=>{}
+                                }
+                            },
+                            _ =>{}
+                        }
+                    },
+                    _=>{}
+                }
+            },
+
+            _ =>{
+                token_iter.next();
+            }
+        }
+    }
+    Ok(result)
+}
 fn main() {
     let input:String = String::from("int main(){return 2;}");
     let var_result = lex(&input);
     match var_result {
         Ok(r)=>{
             println!("{:?}",r);
+            let parse_result = parse(r);
+            match parse_result{
+                Ok(v)=>{
+                    println!("{:?}",v);
+                },
+                Err(_) => println!("ann error happend"),
+            }
         },
         Err(_) => println!("An error occurd"),
     }
