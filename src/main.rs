@@ -1,233 +1,259 @@
-use std::collections::HashMap;
-#[derive(Debug, Clone)]
-pub enum Token{
-    Num(u32),
-    Id(String),
-    Identifier(String),
-    Keyword(String),
-    OpenBrace(char),
-    CloseBrace(char),
-    OpenBracket(char),
-    CloseBracket(char),
-    SemiColon(char),
-    Assign(char),
-}
-#[derive(Debug)]
-pub struct  Program{
-    funcs: Vec<Function>,
-}
-#[derive(Debug)]
-pub struct Function{
-    Type:String,
-    Name:String,
-    Statements: Vec<Statement>
-}
-#[derive(Debug)]
-pub struct Statement{
-    KeyWord : String,
-    Expres: Expression,
-}
-#[derive(Debug)]
-pub struct Expression{
-    data: u32,
-}
-fn lex(input: &String) -> Result<Vec<Token>,String>{
-    //turn input into a list of chars
-    let mut result = Vec::new();
+use std::iter::Peekable;
 
-    let mut words = HashMap::new(); 
-    let mut it = input.chars().peekable();
-    let mut _lineno = 1;
-
-
-    while let Some(&c) = it.peek(){
-        match c {
-            ' ' | '\t' =>{
-                it.next();
-            },
-            '\n' =>{
-                _lineno += 1;
-                it.next();
-            }
-            'i' =>{
-                it.next();
-                let ch = it.peek();
-                if let Some('n') = ch{
-                    it.next();
-                    let ch = it.peek();
-                    if let Some('t') = ch{
-                        result.push(Token::Keyword("int".to_string()));
-                        it.next();
-                    }
-                }
-            }
-            '0'..='9' => {
-                println!("started an int");
-                let mut n = c.to_string().parse::<u32>().expect("Character not a digit");
-
-                it.next();
-                let mut digit_char = it.peek();
-
-                while let Some(&i) = digit_char{
-                    if i.is_digit(10){
-                        let digit = i.to_string().parse::<u32>().expect("Character not a digit");
-                        n = n*10 + digit;
-                        it.next();
-                        digit_char = it.peek();
-                    } else  {
-                        digit_char = None;}
-                }
-                println!("finished an int");
-                result.push(Token::Num(n));
-            }
-            //used to target characters
-            'A'..='Z' | 'a'..='z' =>{
-                let mut s = String::new();
-                s.push(c);
-                it.next();
-                let mut ch = it.peek();
-                while let Some(&i) = ch{
-                    if !i.is_digit(10) && !i.is_alphabetic(){
-                        ch = None;
-                    }else{
-                        s.push(i);
-                        it.next();
-                        ch = it.peek();
-                    }
-                }
-                println!("{}",s);
-                result.push(Token::Id(s.clone()));
-                words.insert(s.clone(),Token::Id(s.clone()));
-
-            },
-            '{' => {result.push(Token::OpenBrace(c)); it.next();},
-            '}' => {result.push(Token::CloseBrace(c)); it.next();},
-            '(' => {result.push(Token::OpenBracket(c)); it.next();},
-            ')' => {result.push(Token::CloseBracket(c)); it.next();},
-            ';' => {result.push(Token::SemiColon(c)); it.next();},
-            _ => {
-                result.push(Token::Id(c.to_string()));{
-                    it.next();
-                }
-            }
-        }
-    }
-    return Ok(result);
+#[derive(Debug,Clone,Copy)]
+pub enum Token {
+    PLUS(),
+    MINUS(),
+    DIV(),
+    MULT(),
+    MOD(),
+    POW(),
+    NUM(i32),
+    OpenBracket(),
+    CloseBracket(),
 }
 
-fn parse(lex : Vec<Token>) -> Result<Program,String>{
-    let mut result = Program { funcs: Vec::new() };
-    let mut token_iter = lex.iter().peekable();
-    
-    while let Some(&token) = token_iter.peek(){
-        match token{
-            Token::Keyword(_)=>{
-                let Type = (*token).clone();
-
-                token_iter.next();
-                let token = *token_iter.peek().unwrap();
-                match token {
-                    Token::Id(_)=>{
-                        //now i know that the next 3 tokens should be (){ so lets check quickly if that is true
-                        let name = (*token).clone();
-                        token_iter.next();
-                        let token = *token_iter.peek().unwrap();
-                        match token {
-                            Token::OpenBracket('(')=>{
-                                token_iter.next();
-                                let token = *token_iter.peek().unwrap();
-                                match token {
-                                    Token::CloseBracket(')')=>{
-                                        token_iter.next();
-                                        let token = *token_iter.peek().unwrap();
-                                        match token{
-                                            Token::OpenBrace('{') =>{
-                                                // a function has been declared here
-                                                let mut New_Type:String = String::new();
-                                                let mut new_name:String = String::new();
-                                                match name {
-                                                    Token::Id(t)=>{new_name = t},
-                                                    _=>{}
-                                                }
-                                                match Type {
-                                                    Token::Keyword(t)=>{New_Type = t},
-                                                    _=>{}
-                                                }
-                                                
-                                                let mut all_states = Vec::<Statement>::new();
-                                                // could from here do a while until i detect a } to check for End of func
-                                                while let Some(&token) = token_iter.peek(){
-                                                    match token {
-                                                        Token::Id(_) =>{
-                                                            let id = (*token).clone();
-                                                            token_iter.next();
-                                                            let token = *token_iter.peek().unwrap();
-                                                            match token{
-                                                                Token::Num(_)=>{
-                                                                    let num = (*token).clone();
-                                                                    token_iter.next();
-                                                                    let token = *token_iter.peek().unwrap();
-                                                                    match token{
-                                                                        Token::SemiColon(_)=>{
-                                                                            //end of statement found
-                                                                            if let Token::Num(new_num) = num{
-                                                                                if let Token::Id(new_id) = id{
-                                                                                    let new_statement = Statement{KeyWord:new_id,Expres:Expression { data: new_num }};
-                                                                                    all_states.push(new_statement);
-                                                                                }else{}
-                                                                            }else{}
-                                                                        }
-                                                                        _=>{}
-                                                                    }
-                                                                },
-                                                                _=>{}
-                                                            }
-                                                        },
-                                                        Token::CloseBrace(_)=>{
-                                                            break
-                                                        }
-                                                        _=>{token_iter.next();}
-                                                    }
-                                                }
-                                                let new_func = Function{Type:New_Type,Name:new_name,Statements:all_states};
-                                                result.funcs.push(new_func);
-                                            },
-
-                                            _=>{}
+pub trait LexerMethods {
+    fn tokenize(&self) -> Vec<Token>;
+}
+struct Lexer {
+    input_string: String,
+}
+impl LexerMethods for Lexer {
+    fn tokenize(&self) -> Vec<Token> {
+        let mut tokens = Vec::<Token>::new();
+        //let ch = self.input_string.chars();
+        let mut chars = self.input_string.chars().peekable();
+        while let Some(c) = chars.next() {
+            match c {
+                '0'..='9' => {
+                    let mut current_num = String::from(c.clone());
+                    if chars.peek().is_some() {
+                        match chars.peek().unwrap() {
+                            '0'..='9' => {
+                                while let Some(digit) = chars.next() {
+                                    current_num.push(digit.clone());
+                                    if chars.peek().is_some() {
+                                        match chars.peek().unwrap() {
+                                            '0'..='9' => {}
+                                            _ => break,
                                         }
-                                    },
-                                    _=>{}
+                                    } else {
+                                        break;
+                                    }
                                 }
-                            },
-                            _ =>{}
+                            }
+                            _ => {}
                         }
-                    },
-                    _=>{}
-                }
-            },
+                    }
 
-            _ =>{
-                token_iter.next();
+                    //parse result
+                    match current_num.parse::<i32>() {
+                        Ok(n) => tokens.push(Token::NUM(n)),
+                        Err(e) => panic!("something whent wrong with numbers"),
+                    }
+                    println!("{} is a numnber", current_num);
+                }
+                '+' => {
+                    tokens.push(Token::PLUS());
+                }
+                '-' => {
+                    tokens.push(Token::MINUS());
+                }
+                '*' => {
+                    tokens.push(Token::MULT());
+                }
+                '/' => {
+                    tokens.push(Token::DIV());
+                }
+                '^' => {
+                    tokens.push(Token::POW());
+                }
+                '%' => {
+                    tokens.push(Token::MOD());
+                }
+                '(' => {
+                    tokens.push(Token::OpenBracket());
+                }
+                ')' => {
+                    tokens.push(Token::CloseBracket());
+                }
+                _ => {chars.next();}
             }
         }
+
+        return tokens;
     }
-    Ok(result)
+}
+#[derive(Debug, Clone)]
+struct ASTNode {
+    value: Token,
+    left: Box<Option<ASTNode>>,
+    right: Box<Option<ASTNode>>,
+}
+fn construct_tree(tokens: Vec<Token>) ->Option<ASTNode> {
+    let mut current_token = tokens.iter().peekable();
+    let root_node = expr(&mut current_token);
+    println!("{:?}",current_token.peek());
+    return root_node 
+}
+#[derive(Debug,Clone)]
+enum factorEnum {
+    num(i32),
+    node(ASTNode),
+}
+fn power() {}
+
+fn expr(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
+    println!("==============in expr==========");
+    println!("{:?}",current_token.peek());
+    let left_node = term(current_token);
+    println!("==============in expr==========");
+    if left_node.is_none(){
+        return None;
+    }
+    let left_node = left_node.unwrap();
+    
+    //same with multi and div but with plus and minus
+    //in future change naming of functions to order of operations
+    //like first order second order and third
+    let mut token:Option<Token> = None;
+    let mut root_node:Option<ASTNode> = None;
+    
+    println!("yoyoyo");
+    while let Some(&c_token) = current_token.peek() {
+        println!("hi");
+        println!("{:?}",c_token);
+        match c_token {
+            Token::PLUS() | Token::MINUS() =>{
+                println!("test");
+                token = Some((*c_token).clone());
+                current_token.next();
+                println!("{:?}",current_token.peek());
+                let right_term = term(current_token);
+                println!("==============in expr==========");
+                if right_term.is_none(){
+                   return None;
+                }
+                let right_term = right_term.unwrap();
+               
+                root_node = Some(ASTNode {
+                    left: Box::new(Some(left_node.clone())),
+                    value: token.unwrap(),
+                    right: Box::new(Some(right_term)),
+                });  
+                
+                println!("CREATED NEW NODE {:?}",root_node);          
+                return root_node;
+            }
+            _=>{
+                break;}
+            
+        }
+        
+    }
+    
+    return root_node;
+}
+
+fn term(current_token: &mut Peekable<std::slice::Iter<'_, Token>>)->Option<ASTNode> {
+    println!("==============in term=============");
+    println!("{:?}",current_token.peek());
+    let factor_v = factor(current_token);
+    println!("==============in term=============");
+    println!("enterd from here");
+    if factor_v.is_none(){
+        return None;
+    }
+    let factor_v = factor_v.unwrap();
+    let mut node:Option<ASTNode> = None;
+    let mut token: Option<Token> = None;
+   
+    while let Some(&c_token) = current_token.peek() {
+        println!("{:?}",current_token.peek());
+        match c_token {
+            Token::MULT() | Token::DIV() => {
+                
+                token = Some((*c_token).clone());
+                current_token.next();
+                let right_factor = factor(current_token);
+                
+                println!("==============in term=============");
+                println!("{:?}",right_factor);
+                if right_factor.is_none(){
+                    return None
+                }
+                
+                node = Some(ASTNode {
+                    left: Box::new(Some(factor_v.clone())),
+                    value: token.unwrap(),
+                    right: Box::new(Some(right_factor.unwrap())),
+                });
+                println!("CREATED NEW NODE {:?}",node);
+                return node;
+            },
+            _ => {
+                println!("i should not be here");
+                println!("{:?}",current_token.peek());
+                break
+            }
+        }
+
+    }
+    println!("{:?}",node);
+    return Some(factor_v);
+}
+
+fn factor(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
+    println!("=========in factor===========");
+    println!("{:?}",current_token.peek());
+    let token = Some(*current_token.peek().unwrap());
+    
+    
+    match token.unwrap(){
+        Token::NUM(v) => {
+            println!("removing num");
+            current_token.next();
+            let node = ASTNode{
+                value:Token::NUM(v.clone()),
+                left:Box::new(None),
+                right:Box::new(None),
+            };
+            return Some(node);
+        },
+        Token::OpenBracket() => {
+            println!("=============STARTING BRACKETS============");
+            current_token.next();
+            let node = expr(current_token);
+            println!("=========in factor===========");
+            println!("{:?}",current_token.peek());
+            current_token.next();
+            
+            println!("=============ENDING BRACKETS============");
+            if node.is_none(){
+                println!("Node here is causing issues");
+                return None;
+            }
+            
+            return node;
+        }
+        _ => {println!("this should not be called");}
+    }
+
+    return Some(ASTNode{
+        value:Token::NUM(-1),
+        left:Box::new(None),
+        right:Box::new(None),
+    });
 }
 fn main() {
-    let input:String = String::from("int main(){return 2;}");
-    let var_result = lex(&input);
-    match var_result {
-        Ok(r)=>{
-            println!("{:?}",r);
-            let parse_result = parse(r);
-            match parse_result{
-                Ok(v)=>{
-                    println!("{:?}",v);
-                },
-                Err(_) => println!("ann error happend"),
-            }
-        },
-        Err(_) => println!("An error occurd"),
-    }
-    
+    //(33*3-30*2+2324)/2
+    let mut temp_input = String::from("3-2+3");
+    let mut lexer = Lexer {
+        input_string: temp_input,
+    };
+    let tokens = lexer.tokenize();
+    let root = construct_tree(tokens);
+    println!("test");
+    println!("{:?}",root);
 }
