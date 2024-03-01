@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Token {
     PLUS(),
     MINUS(),
@@ -8,7 +8,7 @@ pub enum Token {
     MULT(),
     MOD(),
     POW(),
-    NUM(i32),
+    NUM(f32),
     OpenBracket(),
     CloseBracket(),
 }
@@ -48,11 +48,10 @@ impl LexerMethods for Lexer {
                     }
 
                     //parse result
-                    match current_num.parse::<i32>() {
+                    match current_num.parse::<f32>() {
                         Ok(n) => tokens.push(Token::NUM(n)),
                         Err(e) => panic!("something whent wrong with numbers"),
                     }
-                    println!("{} is a numnber", current_num);
                 }
                 '+' => {
                     tokens.push(Token::PLUS());
@@ -78,7 +77,9 @@ impl LexerMethods for Lexer {
                 ')' => {
                     tokens.push(Token::CloseBracket());
                 }
-                _ => {chars.next();}
+                _ => {
+                    chars.next();
+                }
             }
         }
 
@@ -91,169 +92,205 @@ struct ASTNode {
     left: Box<Option<ASTNode>>,
     right: Box<Option<ASTNode>>,
 }
-fn construct_tree(tokens: Vec<Token>) ->Option<ASTNode> {
+fn construct_tree(tokens: Vec<Token>) -> Option<ASTNode> {
     let mut current_token = tokens.iter().peekable();
-    let root_node = expr(&mut current_token);
-    println!("{:?}",current_token.peek());
-    return root_node 
-}
-#[derive(Debug,Clone)]
-enum factorEnum {
-    num(i32),
-    node(ASTNode),
-}
-fn power() {}
+    let root_node = third_order_op(&mut current_token);
 
-fn expr(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
-    println!("==============in expr==========");
-    println!("{:?}",current_token.peek());
-    let left_node = term(current_token);
-    println!("==============in expr==========");
-    if left_node.is_none(){
-        return None;
-    }
-    let left_node = left_node.unwrap();
-    
-    //same with multi and div but with plus and minus
-    //in future change naming of functions to order of operations
-    //like first order second order and third
-    let mut token:Option<Token> = None;
-    let mut root_node:Option<ASTNode> = Some(left_node.clone());
-    
-    println!("yoyoyo");
-    while let Some(&c_token) = current_token.peek() {
-        println!("hi");
-        println!("{:?}",c_token);
-        match c_token {
-            Token::PLUS() | Token::MINUS() =>{
-                println!("test");
-                token = Some((*c_token).clone());
-                current_token.next();
-                println!("{:?}",current_token.peek());
-                let right_term = term(current_token);
-                println!("==============in expr==========");
-                if right_term.is_none(){
-                   return None;
-                }
-                let right_term = right_term.unwrap();
-               
-                root_node = Some(ASTNode {
-                    left: Box::new(root_node),
-                    value: token.unwrap(),
-                    right: Box::new(Some(right_term)),
-                });  
-                
-                println!("CREATED NEW NODE {:?}",root_node);          
-                
-            }
-            _=>{
-                break;}
-            
-        }
-        
-    }
-    
     return root_node;
 }
+#[derive(Debug, Clone)]
+enum factorEnum {
+    num(f32),
+    node(ASTNode),
+}
 
-fn term(current_token: &mut Peekable<std::slice::Iter<'_, Token>>)->Option<ASTNode> {
-    println!("==============in term=============");
-    println!("{:?}",current_token.peek());
+fn first_order_op(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
     let factor_v = factor(current_token);
-    println!("==============in term=============");
-    println!("enterd from here");
-    if factor_v.is_none(){
+
+    if factor_v.is_none() {
         return None;
     }
     let factor_v = factor_v.unwrap();
-    let mut node:Option<ASTNode> = Some(factor_v);
+    let mut node: Option<ASTNode> = Some(factor_v);
     let mut token: Option<Token> = None;
-   
+
     while let Some(&c_token) = current_token.peek() {
-        println!("{:?}",current_token.peek());
         match c_token {
-            Token::MULT() | Token::DIV() => {
-                
+            Token::POW() => {
                 token = Some((*c_token).clone());
                 current_token.next();
                 let right_factor = factor(current_token);
-                
-                println!("==============in term=============");
-                println!("{:?}",right_factor);
-                if right_factor.is_none(){
-                    return None
+
+                if right_factor.is_none() {
+                    return None;
                 }
-                
+
                 node = Some(ASTNode {
                     left: Box::new(node),
                     value: token.unwrap(),
                     right: Box::new(Some(right_factor.unwrap())),
                 });
-                println!("CREATED NEW NODE {:?}",node);
-                
-            },
+            }
             _ => {
-                println!("i should not be here");
-                println!("{:?}",current_token.peek());
-                break
+                break;
             }
         }
-
     }
-    println!("{:?}",node);
+
     return node;
+}
+fn third_order_op(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
+    let left_node = second_order_op(current_token);
+
+    if left_node.is_none() {
+        return None;
+    }
+    let left_node = left_node.unwrap();
+
+    //same with multi and div but with plus and minus
+    //in future change naming of functions to order of operations
+    //like first order second order and third
+    let mut token: Option<Token> = None;
+    let mut root_node: Option<ASTNode> = Some(left_node.clone());
+
+    while let Some(&c_token) = current_token.peek() {
+        match c_token {
+            Token::PLUS() | Token::MINUS() => {
+                token = Some((*c_token).clone());
+                current_token.next();
+
+                let right_term = second_order_op(current_token);
+
+                if right_term.is_none() {
+                    return None;
+                }
+                let right_term = right_term.unwrap();
+
+                root_node = Some(ASTNode {
+                    left: Box::new(root_node),
+                    value: token.unwrap(),
+                    right: Box::new(Some(right_term)),
+                });
+            }
+            _ => {
+                break;
+            }
+        }
+    }
+
+    return root_node;
+}
+
+fn second_order_op(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
+    let left_node = first_order_op(current_token);
+
+    if left_node.is_none() {
+        return None;
+    }
+    let left_node = left_node.unwrap();
+
+    //same with multi and div but with plus and minus
+    //in future change naming of functions to order of operations
+    //like first order second order and third
+    let mut token: Option<Token> = None;
+    let mut root_node: Option<ASTNode> = Some(left_node.clone());
+
+    while let Some(&c_token) = current_token.peek() {
+        match c_token {
+            Token::MULT() | Token::DIV() | Token::MOD() => {
+                token = Some((*c_token).clone());
+                current_token.next();
+
+                let right_term = first_order_op(current_token);
+
+                if right_term.is_none() {
+                    return None;
+                }
+                let right_term = right_term.unwrap();
+
+                root_node = Some(ASTNode {
+                    left: Box::new(root_node),
+                    value: token.unwrap(),
+                    right: Box::new(Some(right_term)),
+                });
+            }
+            _ => {
+                break;
+            }
+        }
+    }
+
+    return root_node;
 }
 
 fn factor(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
-    println!("=========in factor===========");
-    println!("{:?}",current_token.peek());
     let token = Some(*current_token.peek().unwrap());
-    
-    
-    match token.unwrap(){
+
+    match token.unwrap() {
         Token::NUM(v) => {
-            println!("removing num");
             current_token.next();
-            let node = ASTNode{
-                value:Token::NUM(v.clone()),
-                left:Box::new(None),
-                right:Box::new(None),
+            let node = ASTNode {
+                value: Token::NUM(v.clone()),
+                left: Box::new(None),
+                right: Box::new(None),
             };
             return Some(node);
-        },
+        }
         Token::OpenBracket() => {
-            println!("=============STARTING BRACKETS============");
             current_token.next();
-            let node = expr(current_token);
-            println!("=========in factor===========");
-            println!("{:?}",current_token.peek());
+            let node = third_order_op(current_token);
+
             current_token.next();
-            
-            println!("=============ENDING BRACKETS============");
-            if node.is_none(){
-                println!("Node here is causing issues");
+
+            if node.is_none() {
                 return None;
             }
-            
+
             return node;
         }
-        _ => {println!("this should not be called");}
+        _ => {}
     }
 
-    return Some(ASTNode{
-        value:Token::NUM(-1),
-        left:Box::new(None),
-        right:Box::new(None),
+    return Some(ASTNode {
+        value: Token::NUM(-1.0),
+        left: Box::new(None),
+        right: Box::new(None),
     });
 }
+
+fn interpret(root: Option<ASTNode>) -> f32 {
+    return visit(root);
+}
+fn visit(node: Option<ASTNode>) -> f32 {
+    if node.is_some() {
+        let node = node.unwrap();
+        match node.value {
+            Token::DIV() => {
+                return visit(*node.left) / visit(*node.right);
+            }
+            Token::MULT() => return visit(*node.left) * visit(*node.right),
+            Token::POW() => return visit(*node.left).powf(visit(*node.right)),
+            Token::MOD() => return visit(*node.left) % visit(*node.right),
+            Token::MINUS() => return visit(*node.left) - visit(*node.right),
+            Token::PLUS() => return visit(*node.left) + visit(*node.right),
+            Token::NUM(n) => {
+                return n;
+            }
+            _ => {}
+        }
+    }
+    return 2.0;
+}
+
 fn main() {
     //(33*3-30*2+2324)/2
-    let mut temp_input = String::from("3*2+2");
+    let mut temp_input = String::from("(33*3-30*2+2324)/2");
     let mut lexer = Lexer {
         input_string: temp_input,
     };
     let tokens = lexer.tokenize();
     let root = construct_tree(tokens);
-    println!("test");
-    println!("{:?}",root);
+
+    println!("i got an answer of:");
+    println!("{}", interpret(root));
 }
