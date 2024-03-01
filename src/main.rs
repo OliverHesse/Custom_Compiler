@@ -50,7 +50,7 @@ impl LexerMethods for Lexer {
                     //parse result
                     match current_num.parse::<f32>() {
                         Ok(n) => tokens.push(Token::NUM(n)),
-                        Err(e) => panic!("something whent wrong with numbers"),
+                        Err(_) => panic!("something whent wrong with numbers"),
                     }
                 }
                 '+' => {
@@ -98,11 +98,6 @@ fn construct_tree(tokens: Vec<Token>) -> Option<ASTNode> {
 
     return root_node;
 }
-#[derive(Debug, Clone)]
-enum factorEnum {
-    num(f32),
-    node(ASTNode),
-}
 
 fn first_order_op(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
     let factor_v = factor(current_token);
@@ -112,12 +107,11 @@ fn first_order_op(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> 
     }
     let factor_v = factor_v.unwrap();
     let mut node: Option<ASTNode> = Some(factor_v);
-    let mut token: Option<Token> = None;
 
     while let Some(&c_token) = current_token.peek() {
         match c_token {
             Token::POW() => {
-                token = Some((*c_token).clone());
+                let token = Some((*c_token).clone());
                 current_token.next();
                 let right_factor = factor(current_token);
 
@@ -150,13 +144,13 @@ fn third_order_op(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> 
     //same with multi and div but with plus and minus
     //in future change naming of functions to order of operations
     //like first order second order and third
-    let mut token: Option<Token> = None;
+
     let mut root_node: Option<ASTNode> = Some(left_node.clone());
 
     while let Some(&c_token) = current_token.peek() {
         match c_token {
             Token::PLUS() | Token::MINUS() => {
-                token = Some((*c_token).clone());
+                let token = Some((*c_token).clone());
                 current_token.next();
 
                 let right_term = second_order_op(current_token);
@@ -192,13 +186,13 @@ fn second_order_op(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) ->
     //same with multi and div but with plus and minus
     //in future change naming of functions to order of operations
     //like first order second order and third
-    let mut token: Option<Token> = None;
+
     let mut root_node: Option<ASTNode> = Some(left_node.clone());
 
     while let Some(&c_token) = current_token.peek() {
         match c_token {
             Token::MULT() | Token::DIV() | Token::MOD() => {
-                token = Some((*c_token).clone());
+                let token = Some((*c_token).clone());
                 current_token.next();
 
                 let right_term = first_order_op(current_token);
@@ -281,16 +275,15 @@ fn visit(node: Option<ASTNode>) -> f32 {
     }
     return 2.0;
 }
-
-fn main() {
-    //(33*3-30*2+2324)/2
-    let mut temp_input = String::from("(33*3-30*2+2324)/2");
-    let mut lexer = Lexer {
-        input_string: temp_input,
-    };
+fn calculate(input_string: String) {
+    let lexer = Lexer { input_string };
     let tokens = lexer.tokenize();
     let root = construct_tree(tokens);
-
     println!("i got an answer of:");
     println!("{}", interpret(root));
+}
+fn main() {
+    //(33*3-30*2+2324)/2
+    let temp_input = String::from("(2*4+5)^(4)");
+    calculate(temp_input);
 }
