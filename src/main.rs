@@ -118,7 +118,7 @@ fn expr(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<AST
     //in future change naming of functions to order of operations
     //like first order second order and third
     let mut token:Option<Token> = None;
-    let mut root_node:Option<ASTNode> = None;
+    let mut root_node:Option<ASTNode> = Some(left_node.clone());
     
     println!("yoyoyo");
     while let Some(&c_token) = current_token.peek() {
@@ -138,13 +138,13 @@ fn expr(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<AST
                 let right_term = right_term.unwrap();
                
                 root_node = Some(ASTNode {
-                    left: Box::new(Some(left_node.clone())),
+                    left: Box::new(root_node),
                     value: token.unwrap(),
                     right: Box::new(Some(right_term)),
                 });  
                 
                 println!("CREATED NEW NODE {:?}",root_node);          
-                return root_node;
+                
             }
             _=>{
                 break;}
@@ -166,7 +166,7 @@ fn term(current_token: &mut Peekable<std::slice::Iter<'_, Token>>)->Option<ASTNo
         return None;
     }
     let factor_v = factor_v.unwrap();
-    let mut node:Option<ASTNode> = None;
+    let mut node:Option<ASTNode> = Some(factor_v);
     let mut token: Option<Token> = None;
    
     while let Some(&c_token) = current_token.peek() {
@@ -185,12 +185,12 @@ fn term(current_token: &mut Peekable<std::slice::Iter<'_, Token>>)->Option<ASTNo
                 }
                 
                 node = Some(ASTNode {
-                    left: Box::new(Some(factor_v.clone())),
+                    left: Box::new(node),
                     value: token.unwrap(),
                     right: Box::new(Some(right_factor.unwrap())),
                 });
                 println!("CREATED NEW NODE {:?}",node);
-                return node;
+                
             },
             _ => {
                 println!("i should not be here");
@@ -201,7 +201,7 @@ fn term(current_token: &mut Peekable<std::slice::Iter<'_, Token>>)->Option<ASTNo
 
     }
     println!("{:?}",node);
-    return Some(factor_v);
+    return node;
 }
 
 fn factor(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<ASTNode> {
@@ -248,7 +248,7 @@ fn factor(current_token: &mut Peekable<std::slice::Iter<'_, Token>>) -> Option<A
 }
 fn main() {
     //(33*3-30*2+2324)/2
-    let mut temp_input = String::from("3-2+3");
+    let mut temp_input = String::from("3*2+2");
     let mut lexer = Lexer {
         input_string: temp_input,
     };
